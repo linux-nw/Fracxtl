@@ -1,5 +1,5 @@
-# CipherFract
-CipherFract is a browser-based steganography tool that encrypts text messages with AES-256-GCM and hides the ciphertext inside a Mandelbrot fractal PNG image, with no pixel modification and no server required.
+# Fracxtl
+Fracxtl is a browser-based steganography tool that encrypts text messages with AES-256-GCM and hides the ciphertext inside a Mandelbrot fractal PNG image, with no pixel modification and no server required.
 
 ## Features
 
