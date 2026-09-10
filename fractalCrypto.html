@@ -416,18 +416,16 @@ async function deriveKeys(pw, salt) {
   const prk=await crypto.subtle.deriveBits({name:'PBKDF2',salt,iterations:150000,hash:'SHA-256'},base,512);
   const hkdf=await crypto.subtle.importKey('raw',prk,'HKDF',false,['deriveKey','deriveBits']);
   const enc=new TextEncoder();
-  const[aesKey,hmacRaw]=await Promise.all([
+  const[aesKey,hmacRaw,fractalBits]=await Promise.all([
     crypto.subtle.deriveKey({name:'HKDF',hash:'SHA-256',salt:new Uint8Array(0),info:enc.encode('CipherFract-AES-v1')},hkdf,{name:'AES-GCM',length:256},false,['encrypt','decrypt']),
-    crypto.subtle.deriveBits({name:'HKDF',hash:'SHA-256',salt:new Uint8Array(0),info:enc.encode('CipherFract-HMAC-v1')},hkdf,256)
+    crypto.subtle.deriveBits({name:'HKDF',hash:'SHA-256',salt:new Uint8Array(0),info:enc.encode('CipherFract-HMAC-v1')},hkdf,256),
+    crypto.subtle.deriveBits({name:'HKDF',hash:'SHA-256',salt:new Uint8Array(0),info:enc.encode('CipherFract-Fractal-v1')},hkdf,128)
   ]);
   const hmacKey=await crypto.subtle.importKey('raw',hmacRaw,{name:'HMAC',hash:'SHA-256'},false,['sign','verify']);
-  return{aesKey,hmacKey};
+  return{aesKey,hmacKey,fractalBits:new Uint8Array(fractalBits)};
 }
 
-async function doEncrypt(pw,plaintext) {
-  const salt=crypto.getRandomValues(new Uint8Array(32));
-  const iv=crypto.getRandomValues(new Uint8Array(12));
-  const{aesKey,hmacKey}=await deriveKeys(pw,salt);
+async function doEncrypt(plaintext,salt,iv,aesKey,hmacKey) {
   const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},aesKey,new TextEncoder().encode(plaintext)));
   const macIn=new Uint8Array(32+12+ct.length);
   macIn.set(salt,0);macIn.set(iv,32);macIn.set(ct,44);
@@ -449,10 +447,10 @@ async function doDecrypt(pw,data) {
 // ═══════════════════════════════════════════════════════════
 // FRAKTAL
 // ═══════════════════════════════════════════════════════════
-function deriveParams(key) {
-  let h=0;for(let i=0;i<key.length;i++)h=Math.imul(31,h)+key.charCodeAt(i)|0;
-  const h2=Math.imul(h,0x9e3779b9)^(h>>>16);
-  return{cx:-2.5+((h2&0xFFFF)/0xFFFF)*3.5,cy:-1.25+(((h2>>>16)&0xFFFF)/0xFFFF)*2.5,maxIter:80+(Math.abs(h)%120),zoom:0.8+(Math.abs(h2)%1000)/1000*2.5};
+function deriveParams(fractalBits) {
+  const dv=new DataView(fractalBits.buffer,fractalBits.byteOffset,fractalBits.byteLength);
+  const a=dv.getUint32(0,false),b=dv.getUint32(4,false),c=dv.getUint32(8,false),d=dv.getUint32(12,false);
+  return{cx:-2.5+((a&0xFFFF)/0xFFFF)*3.5,cy:-1.25+((b&0xFFFF)/0xFFFF)*2.5,maxIter:80+(c%120),zoom:0.8+(d%1000)/1000*2.5};
 }
 
 function renderMandelbrot(canvas,p) {
@@ -496,12 +494,16 @@ async function encrypt() {
   const msg=document.getElementById('enc-msg').value.trim();
   const pw=document.getElementById('enc-pw').value;
   if(!msg||!pw){setStatus('enc','err','// Nachricht und Passwort erforderlich');return;}
+  setStatus('enc','pulse','// Leite Schlüssel ab...');await yf();
+  const salt=crypto.getRandomValues(new Uint8Array(32));
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const{aesKey,hmacKey,fractalBits}=await deriveKeys(pw,salt);
   setStatus('enc','pulse','// Rendere Fraktal...');await yf();
   const canvas=document.getElementById('enc-canvas');
-  renderMandelbrot(canvas,deriveParams(pw));canvas.style.display='block';
+  renderMandelbrot(canvas,deriveParams(fractalBits));canvas.style.display='block';
   setStatus('enc','pulse','// Verschlüssele...');await yf();
   let enc;
-  try{enc=await doEncrypt(pw,msg);}catch(e){setStatus('enc','err','// '+e.message);return;}
+  try{enc=await doEncrypt(msg,salt,iv,aesKey,hmacKey);}catch(e){setStatus('enc','err','// '+e.message);return;}
   setStatus('enc','pulse','// Injiziere Chunk...');await yf();
   try{
     const png=await canvasToPng(canvas);
