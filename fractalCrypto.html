@@ -158,7 +158,7 @@
     </div>
 
     <div class="info-bar">
-      <div class="info-item">KDF: <strong>PBKDF2(150k) → HKDF</strong></div>
+      <div class="info-item">KDF: <strong>PBKDF2(600k) → HKDF</strong></div>
       <div class="info-item">Cipher: <strong>AES-256-GCM</strong></div>
       <div class="info-item">MAC: <strong>HMAC-SHA256</strong></div>
       <div class="info-item">Payload: <strong>PNG Comment-Chunk</strong></div>
@@ -411,9 +411,12 @@ function updateEntropy() {
 // ═══════════════════════════════════════════════════════════
 // CRYPTO — PBKDF2 → HKDF → AES-256-GCM + HMAC-SHA256
 // ═══════════════════════════════════════════════════════════
-async function deriveKeys(pw, salt) {
+const PBKDF2_ITERATIONS=600000;
+const PBKDF2_ITERATIONS_LEGACY=150000;
+
+async function deriveKeys(pw, salt, iterations) {
   const base=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveBits']);
-  const prk=await crypto.subtle.deriveBits({name:'PBKDF2',salt,iterations:150000,hash:'SHA-256'},base,512);
+  const prk=await crypto.subtle.deriveBits({name:'PBKDF2',salt,iterations,hash:'SHA-256'},base,512);
   const hkdf=await crypto.subtle.importKey('raw',prk,'HKDF',false,['deriveKey','deriveBits']);
   const enc=new TextEncoder();
   const[aesKey,hmacRaw,fractalBits]=await Promise.all([
@@ -435,9 +438,9 @@ async function doEncrypt(plaintext,salt,iv,aesKey,hmacKey) {
   return out;
 }
 
-async function doDecrypt(pw,data) {
+async function doDecrypt(pw,data,iterations) {
   const salt=data.slice(0,32),iv=data.slice(32,44),mac=data.slice(44,76),ct=data.slice(76);
-  const{aesKey,hmacKey}=await deriveKeys(pw,salt);
+  const{aesKey,hmacKey}=await deriveKeys(pw,salt,iterations);
   const macIn=new Uint8Array(32+12+ct.length);
   macIn.set(salt,0);macIn.set(iv,32);macIn.set(ct,44);
   if(!await crypto.subtle.verify('HMAC',hmacKey,mac,macIn)) throw new Error('HMAC ungültig — falsches Passwort');
@@ -477,6 +480,7 @@ function renderMandelbrot(canvas,p) {
 // PNG CHUNK
 // ═══════════════════════════════════════════════════════════
 const KW='Comment';
+const KW_ITER='Iterations';
 function crc32(b){const t=new Uint32Array(256);for(let i=0;i<256;i++){let v=i;for(let j=0;j<8;j++)v=(v&1)?(0xEDB88320^(v>>>1)):(v>>>1);t[i]=v;}let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=t[(c^b[i])&0xFF]^(c>>>8);return(c^0xFFFFFFFF)>>>0;}
 function u32be(n){return new Uint8Array([(n>>>24)&0xFF,(n>>>16)&0xFF,(n>>>8)&0xFF,n&0xFF]);}
 function ru32(b,o){return((b[o]<<24)|(b[o+1]<<16)|(b[o+2]<<8)|b[o+3])>>>0;}
@@ -497,7 +501,7 @@ async function encrypt() {
   setStatus('enc','pulse','// Leite Schlüssel ab...');await yf();
   const salt=crypto.getRandomValues(new Uint8Array(32));
   const iv=crypto.getRandomValues(new Uint8Array(12));
-  const{aesKey,hmacKey,fractalBits}=await deriveKeys(pw,salt);
+  const{aesKey,hmacKey,fractalBits}=await deriveKeys(pw,salt,PBKDF2_ITERATIONS);
   setStatus('enc','pulse','// Rendere Fraktal...');await yf();
   const canvas=document.getElementById('enc-canvas');
   renderMandelbrot(canvas,deriveParams(fractalBits));canvas.style.display='block';
@@ -506,8 +510,9 @@ async function encrypt() {
   try{enc=await doEncrypt(msg,salt,iv,aesKey,hmacKey);}catch(e){setStatus('enc','err','// '+e.message);return;}
   setStatus('enc','pulse','// Injiziere Chunk...');await yf();
   try{
-    const png=await canvasToPng(canvas);
-    const final=injectChunk(png,makeChunk(KW,new TextEncoder().encode(b64enc(enc))));
+    let png=await canvasToPng(canvas);
+    png=injectChunk(png,makeChunk(KW,new TextEncoder().encode(b64enc(enc))));
+    const final=injectChunk(png,makeChunk(KW_ITER,new TextEncoder().encode(String(PBKDF2_ITERATIONS))));
     const dl=document.getElementById('enc-download');
     dl.style.display='inline-block';
     dl.href=URL.createObjectURL(new Blob([final],{type:'image/png'}));
@@ -526,9 +531,14 @@ async function decrypt() {
   try{png=new Uint8Array(await file.arrayBuffer());}catch{setStatus('dec','err','// Datei nicht lesbar');return;}
   let b64;
   try{b64=new TextDecoder().decode(extractChunk(png,KW));}catch(e){setStatus('dec','err','// '+e.message);return;}
+  let iterations=PBKDF2_ITERATIONS_LEGACY;
+  try{
+    const parsed=parseInt(new TextDecoder().decode(extractChunk(png,KW_ITER)),10);
+    if(Number.isFinite(parsed)&&parsed>0)iterations=parsed;
+  }catch{/* kein Iterations-Chunk -> Legacy-Bild, Default bleibt 150k */}
   setStatus('dec','pulse','// Entschlüssele...');await yf();
   try{
-    const text=await doDecrypt(pw,b64dec(b64));
+    const text=await doDecrypt(pw,b64dec(b64),iterations);
     const res=document.getElementById('dec-result');
     res.textContent=text;res.style.display='block';
     setStatus('dec','ok',`// Entschlüsselt · ${text.length} Zeichen`);
