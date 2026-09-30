@@ -12,7 +12,7 @@ CipherFract is a browser-based steganography tool that encrypts text messages wi
 ## Usage
 
 1. Download or clone the repository
-2. Open `index.html` in your browser
+2. Open `fractalCrypto.html` in your browser
 3. Enter your message and a password
 4. Click Encrypt — save the generated PNG
 5. To decrypt, upload the PNG and enter the same password
