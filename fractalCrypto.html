@@ -5,411 +5,273 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CipherFract</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Syne:wght@400;700;800&display=swap');
   :root {
-    --bg:#020508;--surface:#040c14;--surface2:#060f1a;--border:#0a1f35;--border2:#0f2d4a;
-    --blue:#00aaff;--green:#00ffb2;--blue-dim:rgba(0,170,255,0.08);--green-dim:rgba(0,255,178,0.05);
-    --text:#b8d8f0;--muted:#1e4a6a;--glow-b:0 0 24px rgba(0,170,255,0.4);--glow-g:0 0 24px rgba(0,255,178,0.3);
-    --warn:#ffaa00;--red:#ff4466;
+    --bg:#070b14; --panel:#0c1322; --panel-2:#101a2e; --line:#1a2540; --line-2:#26365a;
+    --text:#d3def0; --muted:#7383a3; --dim:#47557a;
+    --blue:#4cc9ff; --mint:#5cffc4; --warn:#ffb547; --red:#ff5d7a;
+    --mono:ui-monospace,'Cascadia Mono',Consolas,'SF Mono',Menlo,monospace;
+    --sans:'Segoe UI',system-ui,-apple-system,Roboto,sans-serif;
   }
   *{margin:0;padding:0;box-sizing:border-box;}
-  body{background:var(--bg);color:var(--text);font-family:'Share Tech Mono',monospace;min-height:100vh;overflow-x:hidden;}
-  body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
-    background:radial-gradient(ellipse 80% 50% at 5% 0%,rgba(0,170,255,0.07) 0%,transparent 55%),
-               radial-gradient(ellipse 50% 60% at 95% 100%,rgba(0,255,178,0.04) 0%,transparent 55%),
-               radial-gradient(ellipse 40% 40% at 50% 50%,rgba(0,170,255,0.02) 0%,transparent 70%);}
-  .grid-bg{position:fixed;inset:0;pointer-events:none;z-index:0;
-    background-image:linear-gradient(rgba(0,170,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,170,255,0.03) 1px,transparent 1px);
-    background-size:44px 44px;}
+  html{color-scheme:dark;}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:15px;min-height:100vh;}
+  body::before{content:'';position:fixed;inset:0;pointer-events:none;
+    background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+    background-size:32px 32px;opacity:.22;
+    -webkit-mask-image:radial-gradient(ellipse 70% 55% at 50% 0%,#000,transparent);mask-image:radial-gradient(ellipse 70% 55% at 50% 0%,#000,transparent);}
 
-  /* ── HEADER ── */
-  header{position:relative;z-index:1;padding:2.2rem 3rem 2rem;display:flex;align-items:center;gap:2rem;border-bottom:1px solid var(--border);}
+  /* ── TOPBAR ── */
+  .topbar{position:sticky;top:0;z-index:10;background:rgba(7,11,20,.88);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);}
+  .topbar-in{max-width:1080px;margin:0 auto;padding:0 2rem;display:flex;align-items:stretch;justify-content:space-between;gap:1.5rem;}
+  .brand{display:flex;align-items:center;gap:.75rem;padding:.75rem 0;}
+  #mark{width:46px;height:46px;display:block;}
+  .brand-name{font-weight:700;font-size:1.05rem;letter-spacing:.01em;}
+  .brand-name b{color:var(--mint);font-weight:700;}
+  .brand-tag{font-family:var(--mono);font-size:.68rem;color:var(--dim);margin-top:1px;}
 
-  /* pixel canvas logo */
-  #logo-canvas{width:180px;height:52px;image-rendering:pixelated;flex-shrink:0;}
-
-  .header-meta{display:flex;flex-direction:column;gap:0.4rem;}
-  .badge{font-size:0.63rem;border:1px solid var(--blue);color:var(--blue);padding:3px 10px;letter-spacing:0.18em;text-transform:uppercase;width:fit-content;opacity:0.75;}
-  .sub{font-size:0.7rem;color:var(--muted);letter-spacing:0.07em;}
+  /* Navigation: Teil der Kopfzeile, Pixelbalken als Markierung */
+  .nav{position:relative;display:flex;align-items:stretch;gap:.4rem;}
+  .nav-bar{position:absolute;bottom:-1px;left:0;height:4px;width:0;background:repeating-linear-gradient(90deg,var(--c,var(--blue)) 0 6px,transparent 6px 8px);transition:left .25s cubic-bezier(.3,.7,.3,1),width .25s cubic-bezier(.3,.7,.3,1);}
+  .nav[data-active="dec"] .nav-bar{--c:var(--mint);}
+  .nav button{display:flex;align-items:center;gap:.55rem;background:none;border:none;color:var(--muted);font:600 .88rem var(--sans);padding:0 1.1rem;cursor:pointer;transition:color .15s;white-space:nowrap;}
+  .nav button:hover{color:var(--text);}
+  .nav button[aria-selected="true"]{color:var(--text);}
+  .nav button[aria-selected="true"] svg{color:var(--blue);}
+  .nav button[data-tab="dec"][aria-selected="true"] svg{color:var(--mint);}
+  .nav button:focus-visible{outline:2px solid var(--blue);outline-offset:-4px;border-radius:6px;}
+  .nav svg{width:17px;height:17px;flex-shrink:0;}
 
   /* ── LAYOUT ── */
-  .main{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:2.5rem 3rem;display:grid;gap:2rem;}
-  .tabs{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--border2);max-width:500px;}
-  .tab{background:none;border:none;color:var(--muted);font-family:'Share Tech Mono',monospace;font-size:0.95rem;letter-spacing:0.12em;padding:1rem 1.5rem;cursor:pointer;text-transform:uppercase;transition:all 0.25s;border-right:1px solid var(--border2);position:relative;text-align:center;}
-  .tab:last-child{border-right:none;}
-  .tab.active{color:var(--blue);background:var(--blue-dim);}
-  .tab.active::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--blue),var(--green));box-shadow:var(--glow-b);}
-  .tab:hover:not(.active){color:var(--text);background:rgba(255,255,255,0.02);}
+  .main{position:relative;max-width:1080px;margin:0 auto;padding:2rem;}
+  .intro{margin-bottom:1.6rem;}
+  .intro h1{font-size:1.5rem;font-weight:700;letter-spacing:-.01em;}
+  .intro p{color:var(--muted);margin-top:.35rem;max-width:60ch;line-height:1.5;}
+  .panel{display:none;}
+  .panel.active{display:grid;grid-template-columns:1fr minmax(0,420px);gap:1.25rem;align-items:start;}
+  .stack{display:grid;gap:1.25rem;}
+  @media(max-width:860px){.panel.active{grid-template-columns:1fr;}.topbar-in{flex-wrap:wrap;gap:0;}.nav{width:100%;}.nav button{flex:1;justify-content:center;padding:.7rem 0;}}
 
-  .panel{display:none;}.panel.active{display:grid;gap:1.8rem;}
-  .card{background:var(--surface2);border:1px solid var(--border2);padding:2rem;display:grid;gap:1.6rem;}
-  .card-title{font-size:0.68rem;letter-spacing:0.2em;text-transform:uppercase;color:var(--blue);border-bottom:1px solid var(--border);padding-bottom:0.9rem;display:flex;align-items:center;gap:0.6rem;}
-  .card-title::before{content:'';width:7px;height:7px;background:var(--blue);box-shadow:var(--glow-b);display:inline-block;flex-shrink:0;}
-  .card-title.green{color:var(--green);}.card-title.green::before{background:var(--green);box-shadow:var(--glow-g);}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:1.4rem;display:grid;gap:1.1rem;}
+  .card-title{display:flex;align-items:center;gap:.6rem;font-family:var(--mono);font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);}
+  .card-title i{width:8px;height:8px;background:var(--blue);display:block;box-shadow:8px 0 0 -2px var(--mint),0 8px 0 -2px var(--dim);margin-right:6px;}
+  .card-title.mint i{background:var(--mint);box-shadow:8px 0 0 -2px var(--blue),0 8px 0 -2px var(--dim);}
 
-  .row{display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;}
-  @media(max-width:700px){.row{grid-template-columns:1fr;}}
+  .field{display:grid;gap:.45rem;}
+  .field label{font-size:.78rem;font-weight:600;color:var(--muted);}
+  .field input[type=password],.field textarea{width:100%;background:var(--bg);border:1px solid var(--line-2);border-radius:8px;color:var(--text);font:inherit;font-family:var(--mono);font-size:.92rem;padding:.75rem .9rem;outline:none;transition:border-color .15s,box-shadow .15s;resize:vertical;}
+  .field input::placeholder,.field textarea::placeholder{color:var(--dim);}
+  .field input:focus,.field textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(76,201,255,.14);}
+  .field textarea{min-height:150px;line-height:1.55;}
+  .panel[data-panel="dec"] .field input:focus{border-color:var(--mint);box-shadow:0 0 0 3px rgba(92,255,196,.12);}
 
-  .field{display:grid;gap:0.55rem;}
-  .field label{font-size:0.72rem;letter-spacing:0.14em;text-transform:uppercase;color:var(--muted);}
-  .field input,.field textarea{width:100%;background:var(--surface);border:1px solid var(--border2);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:1rem;padding:0.95rem 1.1rem;outline:none;transition:border-color 0.2s,box-shadow 0.2s;resize:vertical;}
-  .field input:focus,.field textarea:focus{border-color:var(--blue);box-shadow:0 0 0 1px rgba(0,170,255,0.2);}
-  .field textarea{min-height:140px;line-height:1.6;}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:.55rem;background:var(--blue);color:#04121c;border:none;border-radius:8px;font:700 .9rem var(--sans);padding:.8rem 1.4rem;cursor:pointer;text-decoration:none;transition:filter .15s,transform .05s;}
+  .btn:hover{filter:brightness(1.1);}
+  .btn:active{transform:translateY(1px);}
+  .btn:focus-visible{outline:2px solid var(--text);outline-offset:2px;}
+  .btn.mint{background:var(--mint);}
+  .btn.ghost{background:none;color:var(--text);border:1px solid var(--line-2);}
+  .btn.ghost:hover{border-color:var(--blue);filter:none;}
+  .btn.block{width:100%;}
+  .btn[hidden]{display:none;}
+  .btn svg{width:16px;height:16px;}
 
-  .actions{display:flex;align-items:center;gap:1rem;}
-  .btn{background:none;border:1px solid var(--blue);color:var(--blue);font-family:'Share Tech Mono',monospace;font-size:0.88rem;letter-spacing:0.14em;text-transform:uppercase;padding:0.9rem 2.4rem;cursor:pointer;transition:all 0.2s;position:relative;overflow:hidden;text-decoration:none;display:inline-block;}
-  .btn::before{content:'';position:absolute;inset:0;background:var(--blue);opacity:0;transition:opacity 0.2s;}
-  .btn span{position:relative;z-index:1;}
-  .btn:hover::before{opacity:0.08;}.btn:hover{box-shadow:var(--glow-b);}.btn:active{transform:scale(0.98);}
-  .btn.green-btn{border-color:var(--green);color:var(--green);}.btn.green-btn::before{background:var(--green);}.btn.green-btn:hover{box-shadow:var(--glow-g);}
-  .btn.ghost{border-color:var(--border2);color:var(--muted);padding:0.9rem 1.8rem;display:none;}
-  .btn.ghost:hover{border-color:var(--blue);color:var(--blue);box-shadow:none;}
+  /* Passwortstaerke: Pixelbalken */
+  .meter{display:grid;grid-template-columns:repeat(10,1fr);gap:3px;}
+  .meter i{height:6px;background:var(--line);transition:background .2s;}
+  .meter i.on{background:var(--c,var(--blue));}
+  .meter-label{font-family:var(--mono);font-size:.72rem;color:var(--muted);display:flex;justify-content:space-between;}
 
-  .output-card{background:var(--surface);border:1px solid var(--border);padding:2rem;display:flex;flex-direction:column;align-items:center;gap:1.4rem;min-height:110px;}
-  .output-card canvas{max-width:100%;max-height:440px;border:1px solid var(--border2);box-shadow:0 0 50px rgba(0,170,255,0.08);display:none;}
-  .status-row{width:100%;display:flex;align-items:center;gap:0.8rem;}
-  .dot{width:9px;height:9px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background 0.3s,box-shadow 0.3s;}
-  .dot.ok{background:var(--green);box-shadow:0 0 10px rgba(0,255,178,0.7);}
-  .dot.err{background:var(--red);box-shadow:0 0 10px rgba(255,68,102,0.7);}
-  .dot.pulse{background:var(--blue);animation:blink 0.9s ease-in-out infinite;}
-  @keyframes blink{0%,100%{opacity:1}50%{opacity:0.2}}
-  .status{font-size:0.78rem;letter-spacing:0.1em;color:var(--muted);text-transform:uppercase;}
-  .status.ok{color:var(--green);}.status.err{color:var(--red);}
+  /* Output */
+  .stage{position:relative;aspect-ratio:1;background:var(--bg);border:1px solid var(--line-2);border-radius:10px;overflow:hidden;display:grid;place-items:center;}
+  .stage canvas{width:100%;height:100%;image-rendering:pixelated;display:none;}
+  .stage.has-img canvas{display:block;}
+  .stage.has-img .stage-empty{display:none;}
+  .stage-empty{display:grid;justify-items:center;gap:.8rem;color:var(--dim);font-size:.85rem;text-align:center;padding:1rem;}
+  .stage-empty svg{width:56px;height:56px;}
+  .stage.busy::after{content:'';position:absolute;left:0;right:0;height:14px;top:-14px;background:linear-gradient(transparent,rgba(76,201,255,.35));animation:scan 1s linear infinite;}
+  @keyframes scan{to{top:100%;}}
 
-  .result-text{width:100%;background:rgba(0,170,255,0.04);border:1px solid var(--blue);color:var(--blue);font-family:'Share Tech Mono',monospace;font-size:1rem;padding:1.2rem;word-break:break-word;white-space:pre-wrap;line-height:1.7;display:none;}
+  .status{display:flex;align-items:center;gap:.6rem;font-family:var(--mono);font-size:.78rem;color:var(--muted);min-height:1.2rem;}
+  .dot{width:8px;height:8px;background:var(--dim);flex-shrink:0;}
+  .dot.ok{background:var(--mint);}
+  .dot.err{background:var(--red);}
+  .dot.pulse{background:var(--blue);animation:blink .8s steps(2) infinite;}
+  @keyframes blink{50%{opacity:.2;}}
+  .status.ok{color:var(--mint);}
+  .status.err{color:var(--red);}
 
-  .upload-zone{border:1px dashed var(--border2);padding:1.8rem 1.5rem;text-align:center;cursor:pointer;transition:all 0.2s;font-size:0.85rem;color:var(--muted);letter-spacing:0.08em;line-height:2;background:var(--surface);}
-  .upload-zone:hover{border-color:var(--blue);color:var(--blue);background:var(--blue-dim);}
-  .upload-zone input{display:none;}
-  .upload-zone.has-file{border-color:var(--blue);color:var(--blue);background:var(--blue-dim);border-style:solid;}
+  .result{display:none;background:var(--bg);border:1px solid var(--mint);border-radius:8px;padding:1rem;font-family:var(--mono);font-size:.92rem;line-height:1.6;white-space:pre-wrap;word-break:break-word;color:var(--text);}
 
-  .info-bar{display:flex;gap:0;flex-wrap:wrap;border:1px solid var(--border);}
-  .info-item{font-size:0.67rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);padding:0.8rem 1.5rem;border-right:1px solid var(--border);}
-  .info-item:last-child{border-right:none;}
-  .info-item strong{color:var(--blue);font-weight:normal;}
+  .drop{display:grid;justify-items:center;gap:.4rem;border:1.5px dashed var(--line-2);border-radius:10px;padding:1.6rem 1rem;text-align:center;cursor:pointer;color:var(--muted);font-size:.86rem;background:var(--bg);transition:border-color .15s,color .15s,background .15s;}
+  .drop:hover,.drop.over{border-color:var(--mint);color:var(--text);}
+  .drop.has-file{border-style:solid;border-color:var(--mint);color:var(--mint);}
+  .drop svg{width:26px;height:26px;}
+  .drop input{display:none;}
 
-  .entropy-bar{height:3px;background:var(--border2);margin-top:0.4rem;}
-  .entropy-fill{height:100%;width:0%;transition:width 0.3s,background 0.3s;}
-  .sec-score{display:flex;gap:0.4rem;align-items:center;font-size:0.7rem;color:var(--muted);}
-  .sec-dot{width:8px;height:8px;border-radius:50%;background:var(--border2);}
-  .sec-dot.on{background:var(--blue);box-shadow:0 0 6px rgba(0,170,255,0.7);}
+  .facts{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:1.4rem;}
+  .facts span{font-family:var(--mono);font-size:.7rem;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:.3rem .75rem;}
+  .facts b{color:var(--text);font-weight:500;}
+
+  @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important;}}
 </style>
 </head>
 <body>
-<div class="grid-bg"></div>
-<header>
-  <canvas id="logo-canvas" width="360" height="104"></canvas>
-  <div class="header-meta">
-    <div class="badge">v1.0 // PBKDF2→HKDF · AES-256-GCM · HMAC</div>
-    <div class="sub">Fraktal-basierte Steganographie · Kryptographisch sicher</div>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="brand">
+      <img id="mark" src="icon.png" alt="" width="46" height="46">
+      <div>
+        <div class="brand-name">Cipher<b>Fract</b></div>
+        <div class="brand-tag">v1.0, fraktale Steganographie</div>
+      </div>
+    </div>
+    <nav class="nav" id="nav" role="tablist" data-active="enc" aria-label="Modus">
+      <button role="tab" data-tab="enc" aria-selected="true" aria-controls="panel-enc">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><rect x="5" y="11" width="14" height="9"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+        Verschlüsseln
+      </button>
+      <button role="tab" data-tab="dec" aria-selected="false" aria-controls="panel-dec">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><rect x="5" y="11" width="14" height="9"/><path d="M8 11V7a4 4 0 0 1 7.5-2"/></svg>
+        Entschlüsseln
+      </button>
+      <span class="nav-bar" id="nav-bar"></span>
+    </nav>
   </div>
 </header>
 
-<div class="main">
-  <div class="tabs">
-    <button class="tab active" onclick="switchTab('enc')">⬡ Verschlüsseln</button>
-    <button class="tab" onclick="switchTab('dec')">⬡ Entschlüsseln</button>
-  </div>
+<main class="main">
 
   <!-- ═══ ENCRYPT ═══ -->
-  <div class="panel active" id="panel-enc">
-    <div class="card">
-      <div class="card-title">Nachricht</div>
-      <div class="field">
-        <label>Geheimer Text</label>
-        <textarea id="enc-msg" placeholder="Dein geheimer Text hier..."></textarea>
+  <section class="panel active" id="panel-enc" data-panel="enc" role="tabpanel">
+    <div class="stack">
+      <div class="intro">
+        <h1>Text in ein Fraktal verstecken</h1>
+        <p>Deine Nachricht wird verschlüsselt und in einem Mandelbrot-Bild abgelegt, das nur aus deinem Passwort entsteht.</p>
       </div>
-    </div>
-
-    <div class="card">
-      <div class="card-title">Schlüssel</div>
-      <div class="field">
-        <label>Passwort</label>
-        <input type="password" id="enc-pw" placeholder="Passwort eingeben..." oninput="updateEntropy()">
-        <div class="entropy-bar"><div class="entropy-fill" id="entropy-fill"></div></div>
-        <div class="hint" id="entropy-label" style="margin-top:0.3rem;font-size:0.67rem;color:var(--muted);letter-spacing:0.06em;">// Entropie: —</div>
+      <div class="card">
+        <div class="card-title"><i></i>Nachricht</div>
+        <div class="field">
+          <label for="enc-msg">Geheimer Text</label>
+          <textarea id="enc-msg" placeholder="Dein geheimer Text hier ..."></textarea>
+        </div>
       </div>
-      <div>
-        <div style="font-size:0.67rem;color:var(--muted);letter-spacing:0.06em;margin-bottom:0.5rem">Sicherheitslevel:</div>
-        <div class="sec-score">
-          <div class="sec-dot" id="sc1"></div>
-          <div class="sec-dot" id="sc2"></div>
-          <div class="sec-dot" id="sc3"></div>
-          <div class="sec-dot" id="sc4"></div>
-          <div class="sec-dot" id="sc5"></div>
-          <span id="sc-label" style="margin-left:0.6rem">— Kein Key</span>
+      <div class="card">
+        <div class="card-title"><i></i>Schlüssel</div>
+        <div class="field">
+          <label for="enc-pw">Passwort</label>
+          <input type="password" id="enc-pw" placeholder="Lange Passphrase verwenden" autocomplete="off">
+        </div>
+        <div>
+          <div class="meter" id="meter"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="meter-label" style="margin-top:.5rem"><span id="meter-level">Kein Passwort</span><span id="meter-bits">0 Bit</span></div>
         </div>
       </div>
     </div>
 
     <div class="card">
-      <div class="card-title">Output</div>
-      <div class="actions">
-        <button class="btn" onclick="encrypt()"><span>[ Verschlüsseln &amp; Rendern ]</span></button>
+      <div class="card-title"><i></i>Ergebnis</div>
+      <div class="stage" id="enc-stage">
+        <div class="stage-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="square" stroke-linejoin="miter"><rect x="3" y="4" width="18" height="16"/><path d="M3 16l5-5 4 4 3-3 6 6"/><rect x="14" y="7" width="3" height="3"/></svg><span>Das Ergebnisbild erscheint hier</span></div>
+        <canvas id="enc-canvas" width="512" height="512"></canvas>
       </div>
-      <div class="output-card">
-        <div class="status-row">
-          <div class="dot" id="enc-dot"></div>
-          <div class="status" id="enc-status">// Bereit</div>
-        </div>
-        <canvas id="enc-canvas"></canvas>
-        <a class="btn ghost" id="enc-download"><span>[ PNG Speichern ]</span></a>
-      </div>
+      <div class="status"><div class="dot" id="enc-dot"></div><div id="enc-status">Bereit</div></div>
+      <button class="btn block" id="enc-btn">Verschlüsseln &amp; Rendern</button>
+      <a class="btn ghost block" id="enc-download" hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14"/></svg>
+        PNG speichern
+      </a>
     </div>
-
-    <div class="info-bar">
-      <div class="info-item">KDF: <strong>PBKDF2(150k) → HKDF</strong></div>
-      <div class="info-item">Cipher: <strong>AES-256-GCM</strong></div>
-      <div class="info-item">MAC: <strong>HMAC-SHA256</strong></div>
-      <div class="info-item">Payload: <strong>PNG Comment-Chunk</strong></div>
-      <div class="info-item">Fraktal: <strong>Mandelbrot (key-seeded)</strong></div>
-    </div>
-  </div>
+  </section>
 
   <!-- ═══ DECRYPT ═══ -->
-  <div class="panel" id="panel-dec">
-    <div class="card">
-      <div class="card-title green">Eingabe</div>
-      <div class="row">
+  <section class="panel" id="panel-dec" data-panel="dec" role="tabpanel">
+    <div class="stack">
+      <div class="intro">
+        <h1>Nachricht aus einem Bild lesen</h1>
+        <p>Lade ein mit CipherFract erzeugtes PNG und gib dasselbe Passwort ein.</p>
+      </div>
+      <div class="card">
+        <div class="card-title mint"><i></i>Eingabe</div>
         <div class="field">
           <label>Bild (PNG)</label>
-          <div class="upload-zone" id="drop-zone" onclick="document.getElementById('dec-file').click()">
-            <input type="file" id="dec-file" accept="image/png" onchange="fileSelected(this)">
-            <div id="drop-label">📂 PNG klicken oder droppen</div>
+          <div class="drop" id="drop" tabindex="0" role="button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square"><path d="M4 16v4h16v-4M12 15V4m0 0L8 8m4-4 4 4"/></svg>
+            <div id="drop-label">PNG hier ablegen oder klicken</div>
+            <input type="file" id="dec-file" accept="image/png">
           </div>
         </div>
         <div class="field">
-          <label>Passwort</label>
-          <input type="password" id="dec-pw" placeholder="Passwort eingeben...">
+          <label for="dec-pw">Passwort</label>
+          <input type="password" id="dec-pw" placeholder="Passwort eingeben" autocomplete="off">
         </div>
-      </div>
-      <div class="actions">
-        <button class="btn green-btn" onclick="decrypt()"><span>[ Entschlüsseln ]</span></button>
+        <button class="btn mint" id="dec-btn">Entschlüsseln</button>
       </div>
     </div>
 
     <div class="card">
-      <div class="card-title green">Entschlüsselter Text</div>
-      <div class="output-card">
-        <div class="status-row">
-          <div class="dot" id="dec-dot"></div>
-          <div class="status" id="dec-status">// Bereit</div>
-        </div>
-        <div class="result-text" id="dec-result"></div>
-      </div>
+      <div class="card-title mint"><i></i>Klartext</div>
+      <div class="status"><div class="dot" id="dec-dot"></div><div id="dec-status">Bereit</div></div>
+      <div class="result" id="dec-result"></div>
     </div>
+  </section>
 
-    <div class="info-bar">
-      <div class="info-item">Schritt 1: <strong>Chunk lesen</strong></div>
-      <div class="info-item">Schritt 2: <strong>HMAC prüfen</strong></div>
-      <div class="info-item">Schritt 3: <strong>PBKDF2 → HKDF</strong></div>
-      <div class="info-item">Schritt 4: <strong>AES-GCM entschlüsseln</strong></div>
-    </div>
+  <div class="facts">
+    <span>KDF <b>PBKDF2 150k + HKDF</b></span>
+    <span>Cipher <b>AES-256-GCM</b></span>
+    <span>MAC <b>HMAC-SHA256</b></span>
+    <span>Payload <b>PNG-Textchunk</b></span>
+    <span>Lokal <b>nichts verlässt das Gerät</b></span>
   </div>
-</div>
+</main>
 
 <script>
 // ═══════════════════════════════════════════════════════════
-// PIXEL DISSOLVE LOGO ANIMATION
+// FARBEN / PIXEL-GRAFIK (gemeinsame Sprache für Logo, Icon und Output)
 // ═══════════════════════════════════════════════════════════
-(function initLogo() {
-  const canvas = document.getElementById('logo-canvas');
-  const ctx = canvas.getContext('2d');
-  const W = canvas.width, H = canvas.height;
-  const TEXT = 'CipherFract';
-  const PIXEL = 4; // pixel block size in canvas px
+const PALETTES = [
+  [[7,11,20],[20,40,110],[40,120,220],[76,201,255],[92,255,196],[235,255,248]],   // Blau -> Mint
+  [[12,8,24],[60,24,110],[140,50,190],[255,100,190],[255,180,140],[255,245,230]],  // Violett -> Rosa
+  [[14,8,6],[90,30,14],[190,70,20],[255,150,40],[255,215,110],[255,250,225]],      // Glut
+  [[6,14,14],[10,70,60],[30,150,110],[120,230,120],[220,255,130],[250,255,225]]    // Grün -> Gelb
+];
+function palColor(pal, t) {
+  const s = Math.min(1, Math.max(0, t)) * (pal.length - 1);
+  const i = Math.min(pal.length - 2, Math.floor(s)), f = s - i;
+  return pal[i].map((v, k) => Math.round(v + (pal[i + 1][k] - v) * f));
+}
 
-  // Render text to offscreen to get pixel map
-  const off = document.createElement('canvas');
-  off.width = W; off.height = H;
-  const octx = off.getContext('2d');
-  octx.fillStyle = '#fff';
-  octx.font = `bold ${H * 0.72}px Syne, sans-serif`;
-  octx.textBaseline = 'middle';
-  octx.fillText(TEXT, 4, H / 2);
-
-  const imgData = octx.getImageData(0, 0, W, H).data;
-  const cols = Math.ceil(W / PIXEL);
-  const rows = Math.ceil(H / PIXEL);
-
-  // Collect lit pixels
-  const litPixels = [];
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const px = c * PIXEL + Math.floor(PIXEL / 2);
-      const py = r * PIXEL + Math.floor(PIXEL / 2);
-      const idx = (py * W + px) * 4;
-      if (imgData[idx + 3] > 80) {
-        litPixels.push({ c, r });
-      }
-    }
-  }
-
-  // Each pixel gets a random phase offset and color transition progress
-  const pixels = litPixels.map(p => ({
-    ...p,
-    delay: Math.random() * 1.2,      // seconds before it starts
-    duration: 0.3 + Math.random() * 0.5,
-    // start color: blue or green randomly
-    startBlue: Math.random() > 0.4,
-    dissolved: false
-  }));
-
-  // Shuffle some extra "ghost" pixels that appear then disappear
-  const ghosts = [];
-  for (let i = 0; i < 60; i++) {
-    ghosts.push({
-      c: Math.floor(Math.random() * cols),
-      r: Math.floor(Math.random() * rows),
-      appear: Math.random() * 0.8,
-      disappear: 0.8 + Math.random() * 0.6,
-      blue: Math.random() > 0.5,
-      alpha: 0.4 + Math.random() * 0.5
-    });
-  }
-
-  let startTime = null;
-  const TOTAL = 2.2; // seconds for full animation
-
-  function lerp(a, b, t) { return a + (b - a) * t; }
-
-  function hexToRgb(hex) {
-    const r = parseInt(hex.slice(1, 3), 16);
-    const g = parseInt(hex.slice(3, 5), 16);
-    const b = parseInt(hex.slice(5, 7), 16);
-    return [r, g, b];
-  }
-
-  const BLUE  = hexToRgb('#00aaff');
-  const GREEN = hexToRgb('#00ffb2');
-  const FINAL_BLUE  = hexToRgb('#60ccff');
-  const FINAL_GREEN = hexToRgb('#00ffb2');
-
-  function draw(ts) {
-    if (!startTime) startTime = ts;
-    const elapsed = (ts - startTime) / 1000;
-
-    ctx.clearRect(0, 0, W, H);
-
-    // Draw ghost pixels
-    for (const g of ghosts) {
-      if (elapsed >= g.appear && elapsed <= g.disappear) {
-        const t = (elapsed - g.appear) / (g.disappear - g.appear);
-        const alpha = t < 0.3
-          ? g.alpha * (t / 0.3)
-          : t > 0.7
-            ? g.alpha * (1 - (t - 0.7) / 0.3)
-            : g.alpha;
-        const [r, gr, b] = g.blue ? BLUE : GREEN;
-        ctx.fillStyle = `rgba(${r},${gr},${b},${alpha * 0.6})`;
-        ctx.fillRect(g.c * PIXEL, g.r * PIXEL, PIXEL - 1, PIXEL - 1);
-      }
-    }
-
-    // Draw main pixels
-    for (const p of pixels) {
-      if (elapsed < p.delay) continue;
-      const t = Math.min(1, (elapsed - p.delay) / p.duration);
-
-      let r, g, b, alpha;
-      if (t < 0.5) {
-        // Phase 1: appear as blue or green at full brightness
-        const pt = t / 0.5;
-        const [sr, sg, sb] = p.startBlue ? BLUE : GREEN;
-        r = sr; g = sg; b = sb;
-        alpha = pt;
-      } else {
-        // Phase 2: dissolve into final calm color
-        const pt = (t - 0.5) / 0.5;
-        const [sr, sg, sb] = p.startBlue ? BLUE : GREEN;
-        const [er, eg, eb] = p.startBlue ? FINAL_BLUE : FINAL_GREEN;
-        r = Math.round(lerp(sr, er, pt));
-        g = Math.round(lerp(sg, eg, pt));
-        b = Math.round(lerp(sb, eb, pt));
-        // Slightly reduce brightness as it settles
-        alpha = lerp(1, 0.85, pt);
-      }
-
-      // Add subtle glow on early pixels
-      if (t < 0.7) {
-        const glowAlpha = (1 - t / 0.7) * 0.3;
-        ctx.fillStyle = `rgba(${r},${g},${b},${glowAlpha})`;
-        ctx.fillRect(p.c * PIXEL - 1, p.r * PIXEL - 1, PIXEL + 2, PIXEL + 2);
-      }
-
-      ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`;
-      ctx.fillRect(p.c * PIXEL, p.r * PIXEL, PIXEL - 1, PIXEL - 1);
-    }
-
-    if (elapsed < TOTAL + 0.5) {
-      requestAnimationFrame(draw);
-    } else {
-      // Final static render — clean and sharp
-      ctx.clearRect(0, 0, W, H);
-      for (const p of pixels) {
-        const [r, g, b] = p.startBlue ? FINAL_BLUE : FINAL_GREEN;
-        ctx.fillStyle = `rgba(${r},${g},${b},0.9)`;
-        ctx.fillRect(p.c * PIXEL, p.r * PIXEL, PIXEL - 1, PIXEL - 1);
-      }
-    }
-  }
-
-  // Wait for font to load
-  document.fonts.ready.then(() => {
-    // Re-render text with loaded font
-    octx.clearRect(0, 0, W, H);
-    octx.fillStyle = '#fff';
-    octx.font = `bold ${H * 0.72}px Syne, sans-serif`;
-    octx.textBaseline = 'middle';
-    octx.fillText(TEXT, 4, H / 2);
-    const d2 = octx.getImageData(0, 0, W, H).data;
-    litPixels.length = 0;
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        const px = c * PIXEL + Math.floor(PIXEL / 2);
-        const py = r * PIXEL + Math.floor(PIXEL / 2);
-        const idx = (py * W + px) * 4;
-        if (d2[idx + 3] > 80) litPixels.push({ c, r });
-      }
-    }
-    pixels.length = 0;
-    litPixels.forEach(p => pixels.push({
-      ...p,
-      delay: Math.random() * 1.2,
-      duration: 0.3 + Math.random() * 0.5,
-      startBlue: Math.random() > 0.4
-    }));
-    requestAnimationFrame(draw);
-  });
-})();
+// Mandelbrot mit glatter Iterationszahl; liefert -1 für Punkte in der Menge
+function mandelSmooth(x0, y0, maxIter) {
+  let x = 0, y = 0, x2 = 0, y2 = 0, i = 0;
+  while (x2 + y2 <= 256 && i < maxIter) { y = 2 * x * y + y0; x = x2 - y2 + x0; x2 = x * x; y2 = y * y; i++; }
+  return i >= maxIter ? -1 : i + 1 - Math.log2(Math.log2(x2 + y2) / 2);
+}
 
 // ═══════════════════════════════════════════════════════════
-// ENTROPY
+// PASSWORT-STAERKE
 // ═══════════════════════════════════════════════════════════
 function shannonEntropy(s) {
   if (!s) return 0;
   const f = {};
-  for (const c of s) f[c]=(f[c]||0)+1;
+  for (const c of s) f[c] = (f[c] || 0) + 1;
   const n = s.length;
-  return -Object.values(f).reduce((a,v)=>{const p=v/n;return a+p*Math.log2(p);},0)*n;
+  return -Object.values(f).reduce((a, v) => { const p = v / n; return a + p * Math.log2(p); }, 0) * n;
 }
 
 function updateEntropy() {
   const pw = document.getElementById('enc-pw').value;
   const bits = Math.round(shannonEntropy(pw));
-  const fill = document.getElementById('entropy-fill');
-  fill.style.width = Math.min(100,bits*1.3)+'%';
-  fill.style.background = bits<20?'var(--red)':bits<40?'var(--warn)':'var(--blue)';
-  document.getElementById('entropy-label').textContent =
-    `// Entropie: ~${bits} Bit  ${bits<20?'⚠ schwach':bits<40?'okay':'✓ stark'}`;
-  const dots=[bits>10,bits>25,bits>40,bits>55,bits>70];
-  dots.forEach((on,i)=>document.getElementById('sc'+(i+1)).className='sec-dot'+(on?' on':''));
-  document.getElementById('sc-label').textContent=
-    ['— Kein Key','⚠ Sehr schwach','△ Schwach','◇ Mittel','◆ Stark','★ Sehr stark'][dots.filter(Boolean).length];
+  const level = bits > 70 ? 5 : bits > 55 ? 4 : bits > 40 ? 3 : bits > 25 ? 2 : bits > 10 ? 1 : 0;
+  const color = ['var(--line)', 'var(--red)', 'var(--warn)', 'var(--warn)', 'var(--blue)', 'var(--mint)'][level];
+  const lit = Math.min(10, Math.round(bits / 7));
+  document.querySelectorAll('#meter i').forEach((el, i) => { el.classList.toggle('on', i < lit); el.style.setProperty('--c', color); });
+  document.getElementById('meter-level').textContent = ['Kein Passwort', 'Sehr schwach', 'Schwach', 'Mittel', 'Stark', 'Sehr stark'][level];
+  document.getElementById('meter-bits').textContent = `~${bits} Bit`;
 }
 
 // ═══════════════════════════════════════════════════════════
-// CRYPTO — PBKDF2 → HKDF → AES-256-GCM + HMAC-SHA256
+// CRYPTO - PBKDF2 -> HKDF -> AES-256-GCM + HMAC-SHA256
 // ═══════════════════════════════════════════════════════════
 async function deriveKeys(pw, salt) {
   const base=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveBits']);
@@ -442,37 +304,84 @@ async function doDecrypt(pw,data) {
   const{aesKey,hmacKey}=await deriveKeys(pw,salt);
   const macIn=new Uint8Array(32+12+ct.length);
   macIn.set(salt,0);macIn.set(iv,32);macIn.set(ct,44);
-  if(!await crypto.subtle.verify('HMAC',hmacKey,mac,macIn)) throw new Error('HMAC ungültig — falsches Passwort');
+  if(!await crypto.subtle.verify('HMAC',hmacKey,mac,macIn)) throw new Error('HMAC ungültig, falsches Passwort');
   return new TextDecoder().decode(await crypto.subtle.decrypt({name:'AES-GCM',iv},aesKey,ct));
 }
 
+
 // ═══════════════════════════════════════════════════════════
-// FRAKTAL
+// FRAKTAL (Pixel-Art, vom Passwort abhängig)
 // ═══════════════════════════════════════════════════════════
+const GRID = 64, SCALE = 8; // 64×64 Blöcke à 8 px = 512 px
+
+// Bekannte Randbereiche der Menge; Passwort wählt Ziel, Zoom, Drehung der Palette
+const TARGETS = [
+  [-0.7436439, 0.1318259], [-0.7453, 0.1127], [-1.25066, 0.02012], [-0.1592, 1.0317],
+  [-1.7548777, 0.0], [-0.77568377, 0.13646737], [0.285, 0.01], [-0.5, 0.56], [-1.3, 0.0]
+];
+function seedRng(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619);
+  return () => { h |= 0; h = h + 0x6D2B79F5 | 0; let t = Math.imul(h ^ h >>> 15, 1 | h); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+}
+function pickParams(rnd) {
+  const [tx, ty] = TARGETS[Math.floor(rnd() * TARGETS.length)];
+  const span = 3 * Math.pow(10, -rnd() * 3.2); // Bildbreite: 3 ... ~0.002
+  return {
+    cx: tx + (rnd() - .5) * span * 0.2, cy: ty + (rnd() - .5) * span * 0.2, span,
+    maxIter: Math.round(150 + Math.log10(3 / span) * 120),
+    pal: PALETTES[Math.floor(rnd() * PALETTES.length)], bands: 10 + Math.floor(rnd() * 14)
+  };
+}
+// Grobe Stichprobe: verwirft fast schwarze oder strukturlose Ausschnitte
+function hasStructure(p) {
+  const N = 16; let inside = 0, lo = Infinity, hi = 0;
+  for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) {
+    const it = mandelSmooth(p.cx + ((c + .5) / N - .5) * p.span, p.cy + ((r + .5) / N - .5) * p.span, p.maxIter);
+    if (it < 0) inside++; else { lo = Math.min(lo, it); hi = Math.max(hi, it); }
+  }
+  return inside / (N * N) <= 0.45 && hi - lo > 6;
+}
+// Gleiches Passwort -> gleiche Parameter (Würfelfolge ist deterministisch)
 function deriveParams(key) {
-  let h=0;for(let i=0;i<key.length;i++)h=Math.imul(31,h)+key.charCodeAt(i)|0;
-  const h2=Math.imul(h,0x9e3779b9)^(h>>>16);
-  return{cx:-2.5+((h2&0xFFFF)/0xFFFF)*3.5,cy:-1.25+(((h2>>>16)&0xFFFF)/0xFFFF)*2.5,maxIter:80+(Math.abs(h)%120),zoom:0.8+(Math.abs(h2)%1000)/1000*2.5};
+  const rnd = seedRng(key);
+  let p = pickParams(rnd);
+  for (let i = 0; i < 24 && !hasStructure(p); i++) p = pickParams(rnd);
+  return p;
 }
 
-function renderMandelbrot(canvas,p) {
-  const W=512,H=512;canvas.width=W;canvas.height=H;
-  const ctx=canvas.getContext('2d');const img=ctx.createImageData(W,H);const d=img.data;
-  const sx=(2/p.zoom)/(W/2),sy=(2/p.zoom)/(H/2);
-  for(let py=0;py<H;py++){const y0=p.cy+(py-H/2)*sy;
-    for(let px=0;px<W;px++){const x0=p.cx+(px-W/2)*sx;
-      let x=0,y=0,x2=0,y2=0,iter=0;
-      while(x2+y2<=4&&iter<p.maxIter){y=2*x*y+y0;x=x2-y2+x0;x2=x*x;y2=y*y;iter++;}
-      const i=(py*W+px)*4;
-      if(iter===p.maxIter){d[i]=2;d[i+1]=10;d[i+2]=22;d[i+3]=255;}
-      else{const t=iter/p.maxIter;
-        d[i]=(t*t*8)|0;
-        d[i+1]=((0.3*Math.sin(t*Math.PI*4)+0.3)*180*t)|0;
-        d[i+2]=(t*(1-t)*4*255*0.9+t*t*t*t*120)|0;
-        d[i+3]=255;}
-    }
+// Liefert ein 512×512-Canvas aus 64×64 groben Blöcken
+function renderFractal(p) {
+  const small = document.createElement('canvas'); small.width = small.height = GRID;
+  const sctx = small.getContext('2d'), img = sctx.createImageData(GRID, GRID);
+  for (let r = 0; r < GRID; r++) for (let c = 0; c < GRID; c++) {
+    const it = mandelSmooth(p.cx + ((c + .5) / GRID - .5) * p.span, p.cy + ((r + .5) / GRID - .5) * p.span, p.maxIter);
+    let col;
+    if (it < 0) col = [9, 14, 28];
+    else { const t = Math.floor(((it / p.bands) % 1) * 12) / 12; col = palColor(p.pal, t * 0.9 + 0.05); }
+    img.data.set([col[0], col[1], col[2], 255], (r * GRID + c) * 4);
   }
-  ctx.putImageData(img,0,0);
+  sctx.putImageData(img, 0, 0);
+  const big = document.createElement('canvas'); big.width = big.height = GRID * SCALE;
+  const bctx = big.getContext('2d'); bctx.imageSmoothingEnabled = false;
+  bctx.drawImage(small, 0, 0, big.width, big.height);
+  return big;
+}
+
+// Zeigt das Bild blockweise in zufälliger Reihenfolge
+function revealFractal(view, full) {
+  const ctx = view.getContext('2d'); ctx.clearRect(0, 0, view.width, view.height);
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) { ctx.drawImage(full, 0, 0); return Promise.resolve(); }
+  const T = 4, cells = GRID / T, B = T * SCALE;
+  const order = [...Array(cells * cells).keys()].sort(() => Math.random() - .5);
+  return new Promise(done => {
+    let shown = 0; const t0 = performance.now(), DUR = 600;
+    (function step(now) {
+      const target = Math.min(order.length, Math.ceil(((now - t0) / DUR) * order.length));
+      for (; shown < target; shown++) { const k = order[shown], x = (k % cells) * B, y = ((k / cells) | 0) * B; ctx.drawImage(full, x, y, B, B, x, y, B, B); }
+      if (shown < order.length) requestAnimationFrame(step); else done();
+    })(t0);
+  });
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -489,76 +398,106 @@ function b64enc(b){let s='';for(let i=0;i<b.length;i++)s+=String.fromCharCode(b[
 function b64dec(s){const r=atob(s);const o=new Uint8Array(r.length);for(let i=0;i<r.length;i++)o[i]=r.charCodeAt(i);return o;}
 function canvasToPng(c){return new Promise(r=>c.toBlob(b=>b.arrayBuffer().then(buf=>r(new Uint8Array(buf))),'image/png'));}
 
+
 // ═══════════════════════════════════════════════════════════
-// MAIN
+// AKTIONEN
 // ═══════════════════════════════════════════════════════════
+const $ = id => document.getElementById(id);
+let downloadUrl = null;
+
 async function encrypt() {
-  const msg=document.getElementById('enc-msg').value.trim();
-  const pw=document.getElementById('enc-pw').value;
-  if(!msg||!pw){setStatus('enc','err','// Nachricht und Passwort erforderlich');return;}
-  setStatus('enc','pulse','// Rendere Fraktal...');await yf();
-  const canvas=document.getElementById('enc-canvas');
-  renderMandelbrot(canvas,deriveParams(pw));canvas.style.display='block';
-  setStatus('enc','pulse','// Verschlüssele...');await yf();
-  let enc;
-  try{enc=await doEncrypt(pw,msg);}catch(e){setStatus('enc','err','// '+e.message);return;}
-  setStatus('enc','pulse','// Injiziere Chunk...');await yf();
-  try{
-    const png=await canvasToPng(canvas);
-    const final=injectChunk(png,makeChunk(KW,new TextEncoder().encode(b64enc(enc))));
-    const dl=document.getElementById('enc-download');
-    dl.style.display='inline-block';
-    dl.href=URL.createObjectURL(new Blob([final],{type:'image/png'}));
-    dl.download='cipherfract.png';
-  }catch(e){setStatus('enc','err','// PNG-Fehler: '+e.message);return;}
-  setStatus('enc','ok',`// Fertig · ${msg.length} Zeichen`);
+  const msg = $('enc-msg').value.trim(), pw = $('enc-pw').value, stage = $('enc-stage');
+  if (!msg || !pw) { setStatus('enc', 'err', 'Nachricht und Passwort erforderlich'); return; }
+  $('enc-btn').disabled = true; stage.classList.add('busy');
+  try {
+    setStatus('enc', 'pulse', 'Rendere Fraktal ...'); await yf();
+    const full = renderFractal(deriveParams(pw));
+    setStatus('enc', 'pulse', 'Verschlüssele ...'); await yf();
+    const enc = await doEncrypt(pw, msg);
+    setStatus('enc', 'pulse', 'Schreibe Payload ...'); await yf();
+    const png = await canvasToPng(full);
+    const final = injectChunk(png, makeChunk(KW, new TextEncoder().encode(b64enc(enc))));
+    stage.classList.add('has-img');
+    await revealFractal($('enc-canvas'), full);
+    const dl = $('enc-download');
+    if (downloadUrl) URL.revokeObjectURL(downloadUrl);
+    downloadUrl = URL.createObjectURL(new Blob([final], { type: 'image/png' }));
+    dl.href = downloadUrl; dl.download = 'cipherfract.png'; dl.hidden = false;
+    setStatus('enc', 'ok', `Fertig, ${msg.length} Zeichen`);
+  } catch (e) {
+    setStatus('enc', 'err', e.message);
+  } finally {
+    $('enc-btn').disabled = false; stage.classList.remove('busy');
+  }
 }
 
 async function decrypt() {
-  const pw=document.getElementById('dec-pw').value;
-  const file=document.getElementById('dec-file').files[0];
-  if(!file||!pw){setStatus('dec','err','// Bild und Passwort erforderlich');return;}
-  setStatus('dec','pulse','// Lese Chunk...');
-  document.getElementById('dec-result').style.display='none';
-  let png;
-  try{png=new Uint8Array(await file.arrayBuffer());}catch{setStatus('dec','err','// Datei nicht lesbar');return;}
+  const pw = $('dec-pw').value, file = $('dec-file').files[0], res = $('dec-result');
+  if (!file || !pw) { setStatus('dec', 'err', 'Bild und Passwort erforderlich'); return; }
+  res.style.display = 'none';
+  setStatus('dec', 'pulse', 'Lese Payload ...');
   let b64;
-  try{b64=new TextDecoder().decode(extractChunk(png,KW));}catch(e){setStatus('dec','err','// '+e.message);return;}
-  setStatus('dec','pulse','// Entschlüssele...');await yf();
-  try{
-    const text=await doDecrypt(pw,b64dec(b64));
-    const res=document.getElementById('dec-result');
-    res.textContent=text;res.style.display='block';
-    setStatus('dec','ok',`// Entschlüsselt · ${text.length} Zeichen`);
-  }catch(e){setStatus('dec','err','// '+e.message);}
+  try { b64 = new TextDecoder().decode(extractChunk(new Uint8Array(await file.arrayBuffer()), KW)); }
+  catch (e) { setStatus('dec', 'err', e.message); return; }
+  setStatus('dec', 'pulse', 'Entschlüssele ...'); await yf();
+  try {
+    const text = await doDecrypt(pw, b64dec(b64));
+    res.textContent = text; res.style.display = 'block';
+    setStatus('dec', 'ok', `Entschlüsselt, ${text.length} Zeichen`);
+  } catch (e) { setStatus('dec', 'err', e.message); }
 }
 
 // ═══════════════════════════════════════════════════════════
 // UI
 // ═══════════════════════════════════════════════════════════
-function switchTab(t){
-  document.querySelectorAll('.tab').forEach((el,i)=>el.classList.toggle('active',(i===0&&t==='enc')||(i===1&&t==='dec')));
-  document.getElementById('panel-enc').classList.toggle('active',t==='enc');
-  document.getElementById('panel-dec').classList.toggle('active',t==='dec');
+function switchTab(t) {
+  $('nav').dataset.active = t;
+  document.querySelectorAll('#nav button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === t)));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.dataset.panel === t));
+  moveNavBar();
 }
-function fileSelected(input){
-  if(input.files[0]){document.getElementById('drop-zone').classList.add('has-file');document.getElementById('drop-label').innerHTML='✓ '+input.files[0].name;}
+function moveNavBar() {
+  const b = document.querySelector('#nav button[aria-selected="true"]'), bar = $('nav-bar');
+  bar.style.left = b.offsetLeft + 'px'; bar.style.width = b.offsetWidth + 'px';
 }
-function setStatus(panel,type,msg){
-  document.getElementById(panel+'-dot').className='dot '+(type==='pulse'?'pulse':type);
-  const el=document.getElementById(panel+'-status');
-  el.textContent=msg;el.className='status '+(type==='pulse'?'':type);
+function setStatus(panel, type, msg) {
+  $(panel + '-dot').className = 'dot ' + type;
+  const el = $(panel + '-status');
+  el.textContent = msg; el.className = type === 'ok' || type === 'err' ? type : '';
+  el.parentElement.className = 'status ' + (type === 'ok' || type === 'err' ? type : '');
 }
-function yf(){return new Promise(r=>requestAnimationFrame(r));}
+function yf() { return new Promise(r => requestAnimationFrame(r)); }
+function fileSelected(file) {
+  if (!file) return;
+  $('drop').classList.add('has-file');
+  $('drop-label').textContent = file.name;
+}
 
-const dz=document.getElementById('drop-zone');
-dz.addEventListener('dragover',e=>{e.preventDefault();dz.style.borderColor='var(--blue)';});
-dz.addEventListener('dragleave',()=>{dz.style.borderColor='';});
-dz.addEventListener('drop',e=>{
-  e.preventDefault();
-  const f=e.dataTransfer.files[0];
-  if(f&&f.type==='image/png'){document.getElementById('dec-file').files=e.dataTransfer.files;fileSelected(document.getElementById('dec-file'));}
+document.querySelectorAll('#nav button').forEach(b => {
+  b.addEventListener('click', () => switchTab(b.dataset.tab));
+  b.addEventListener('keydown', e => { if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { const t = b.dataset.tab === 'enc' ? 'dec' : 'enc'; switchTab(t); document.querySelector(`#nav [data-tab="${t}"]`).focus(); } });
 });
+$('enc-pw').addEventListener('input', updateEntropy);
+$('enc-btn').addEventListener('click', encrypt);
+$('dec-btn').addEventListener('click', decrypt);
+$('dec-pw').addEventListener('keydown', e => { if (e.key === 'Enter') decrypt(); });
+
+const drop = $('drop');
+drop.addEventListener('click', () => $('dec-file').click());
+drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('dec-file').click(); } });
+$('dec-file').addEventListener('change', e => fileSelected(e.target.files[0]));
+drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+drop.addEventListener('drop', e => {
+  e.preventDefault(); drop.classList.remove('over');
+  const f = e.dataTransfer.files[0];
+  if (f && f.type === 'image/png') { $('dec-file').files = e.dataTransfer.files; fileSelected(f); }
+});
+
+updateEntropy();
+moveNavBar();
+addEventListener('resize', moveNavBar);
+document.fonts && document.fonts.ready.then(moveNavBar);
 </script>
 </body>
 </html>

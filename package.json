@@ -1,0 +1,38 @@
+{
+  "name": "cipherfract",
+  "productName": "CipherFract",
+  "version": "1.0.0",
+  "description": "Fraktal-basierte Steganographie - kryptographisch sicher",
+  "main": "main.js",
+  "author": "linux",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^32.3.3",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.linux.cipherfract",
+    "productName": "CipherFract",
+    "files": [
+      "main.js",
+      "preload.js",
+      "fractalCrypto.html",
+      "icon.png"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "icon": "icon.png",
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  }
+}
