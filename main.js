@@ -20,7 +20,7 @@ function createWindow() {
   });
 
   Menu.setApplicationMenu(null);
-  mainWindow.loadFile('fractalCrypto.html');
+  mainWindow.loadFile('index.html');
 }
 
 app.whenReady().then(() => {

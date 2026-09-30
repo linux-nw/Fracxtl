@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CipherFract</title>
+<title>Fracxtl</title>
 <style>
   :root {
     --bg:#070b14; --panel:#0c1322; --panel-2:#101a2e; --line:#1a2540; --line-2:#26365a;
@@ -122,7 +122,7 @@
     <div class="brand">
       <img id="mark" src="icon.png" alt="" width="46" height="46">
       <div>
-        <div class="brand-name">Cipher<b>Fract</b></div>
+        <div class="brand-name">Frac<b>xtl</b></div>
         <div class="brand-tag">v1.0, fraktale Steganographie</div>
       </div>
     </div>
@@ -147,7 +147,7 @@
     <div class="stack">
       <div class="intro">
         <h1>Text in ein Fraktal verstecken</h1>
-        <p>Deine Nachricht wird verschlüsselt und in einem Mandelbrot-Bild abgelegt, das nur aus deinem Passwort entsteht.</p>
+        <p>Deine Nachricht wird verschlüsselt und in einem Mandelbrot-Bild abgelegt. Jede Verschlüsselung erzeugt ein anderes Bild.</p>
       </div>
       <div class="card">
         <div class="card-title"><i></i>Nachricht</div>
@@ -189,7 +189,7 @@
     <div class="stack">
       <div class="intro">
         <h1>Nachricht aus einem Bild lesen</h1>
-        <p>Lade ein mit CipherFract erzeugtes PNG und gib dasselbe Passwort ein.</p>
+        <p>Lade ein mit Fracxtl erzeugtes PNG und gib dasselbe Passwort ein.</p>
       </div>
       <div class="card">
         <div class="card-title mint"><i></i>Eingabe</div>
@@ -217,7 +217,7 @@
   </section>
 
   <div class="facts">
-    <span>KDF <b>PBKDF2 150k + HKDF</b></span>
+    <span>KDF <b>PBKDF2 600k + HKDF</b></span>
     <span>Cipher <b>AES-256-GCM</b></span>
     <span>MAC <b>HMAC-SHA256</b></span>
     <span>Payload <b>PNG-Textchunk</b></span>
@@ -271,25 +271,27 @@ function updateEntropy() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// CRYPTO - PBKDF2 -> HKDF -> AES-256-GCM + HMAC-SHA256
+// CRYPTO — PBKDF2 -> HKDF -> AES-256-GCM + HMAC-SHA256
 // ═══════════════════════════════════════════════════════════
-async function deriveKeys(pw, salt) {
+const PBKDF2_ITERATIONS=600000;
+const PBKDF2_ITERATIONS_LEGACY=150000;
+
+// Hinweis: Die HKDF-Kontextstrings behalten den Namen 'CipherFract', damit bestehende Bilder entschlüsselbar bleiben.
+async function deriveKeys(pw, salt, iterations) {
   const base=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveBits']);
-  const prk=await crypto.subtle.deriveBits({name:'PBKDF2',salt,iterations:150000,hash:'SHA-256'},base,512);
+  const prk=await crypto.subtle.deriveBits({name:'PBKDF2',salt,iterations,hash:'SHA-256'},base,512);
   const hkdf=await crypto.subtle.importKey('raw',prk,'HKDF',false,['deriveKey','deriveBits']);
   const enc=new TextEncoder();
-  const[aesKey,hmacRaw]=await Promise.all([
+  const[aesKey,hmacRaw,fractalBits]=await Promise.all([
     crypto.subtle.deriveKey({name:'HKDF',hash:'SHA-256',salt:new Uint8Array(0),info:enc.encode('CipherFract-AES-v1')},hkdf,{name:'AES-GCM',length:256},false,['encrypt','decrypt']),
-    crypto.subtle.deriveBits({name:'HKDF',hash:'SHA-256',salt:new Uint8Array(0),info:enc.encode('CipherFract-HMAC-v1')},hkdf,256)
+    crypto.subtle.deriveBits({name:'HKDF',hash:'SHA-256',salt:new Uint8Array(0),info:enc.encode('CipherFract-HMAC-v1')},hkdf,256),
+    crypto.subtle.deriveBits({name:'HKDF',hash:'SHA-256',salt:new Uint8Array(0),info:enc.encode('CipherFract-Fractal-v1')},hkdf,128)
   ]);
   const hmacKey=await crypto.subtle.importKey('raw',hmacRaw,{name:'HMAC',hash:'SHA-256'},false,['sign','verify']);
-  return{aesKey,hmacKey};
+  return{aesKey,hmacKey,fractalBits:new Uint8Array(fractalBits)};
 }
 
-async function doEncrypt(pw,plaintext) {
-  const salt=crypto.getRandomValues(new Uint8Array(32));
-  const iv=crypto.getRandomValues(new Uint8Array(12));
-  const{aesKey,hmacKey}=await deriveKeys(pw,salt);
+async function doEncrypt(plaintext,salt,iv,aesKey,hmacKey) {
   const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-GCM',iv},aesKey,new TextEncoder().encode(plaintext)));
   const macIn=new Uint8Array(32+12+ct.length);
   macIn.set(salt,0);macIn.set(iv,32);macIn.set(ct,44);
@@ -299,15 +301,14 @@ async function doEncrypt(pw,plaintext) {
   return out;
 }
 
-async function doDecrypt(pw,data) {
+async function doDecrypt(pw,data,iterations) {
   const salt=data.slice(0,32),iv=data.slice(32,44),mac=data.slice(44,76),ct=data.slice(76);
-  const{aesKey,hmacKey}=await deriveKeys(pw,salt);
+  const{aesKey,hmacKey}=await deriveKeys(pw,salt,iterations);
   const macIn=new Uint8Array(32+12+ct.length);
   macIn.set(salt,0);macIn.set(iv,32);macIn.set(ct,44);
   if(!await crypto.subtle.verify('HMAC',hmacKey,mac,macIn)) throw new Error('HMAC ungültig, falsches Passwort');
   return new TextDecoder().decode(await crypto.subtle.decrypt({name:'AES-GCM',iv},aesKey,ct));
 }
-
 
 // ═══════════════════════════════════════════════════════════
 // FRAKTAL (Pixel-Art, vom Passwort abhängig)
@@ -319,9 +320,8 @@ const TARGETS = [
   [-0.7436439, 0.1318259], [-0.7453, 0.1127], [-1.25066, 0.02012], [-0.1592, 1.0317],
   [-1.7548777, 0.0], [-0.77568377, 0.13646737], [0.285, 0.01], [-0.5, 0.56], [-1.3, 0.0]
 ];
-function seedRng(str) {
-  let h = 2166136261;
-  for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619);
+function seedRng(seed) {
+  let h = seed | 0;
   return () => { h |= 0; h = h + 0x6D2B79F5 | 0; let t = Math.imul(h ^ h >>> 15, 1 | h); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
 }
 function pickParams(rnd) {
@@ -342,9 +342,12 @@ function hasStructure(p) {
   }
   return inside / (N * N) <= 0.45 && hi - lo > 6;
 }
-// Gleiches Passwort -> gleiche Parameter (Würfelfolge ist deterministisch)
-function deriveParams(key) {
-  const rnd = seedRng(key);
+// Parameter stammen aus den HKDF-Bits (Salt + Passwort), nicht aus dem Passwort selbst.
+// Die Würfelfolge ist deterministisch, die Stichprobe verwirft strukturlose Ausschnitte.
+function deriveParams(fractalBits) {
+  const dv = new DataView(fractalBits.buffer, fractalBits.byteOffset, fractalBits.byteLength);
+  const seed = dv.getUint32(0) ^ Math.imul(dv.getUint32(4), 0x9E3779B1) ^ Math.imul(dv.getUint32(8), 0x85EBCA6B) ^ Math.imul(dv.getUint32(12), 0xC2B2AE35);
+  const rnd = seedRng(seed);
   let p = pickParams(rnd);
   for (let i = 0; i < 24 && !hasStructure(p); i++) p = pickParams(rnd);
   return p;
@@ -388,6 +391,7 @@ function revealFractal(view, full) {
 // PNG CHUNK
 // ═══════════════════════════════════════════════════════════
 const KW='Comment';
+const KW_ITER='Iterations';
 function crc32(b){const t=new Uint32Array(256);for(let i=0;i<256;i++){let v=i;for(let j=0;j<8;j++)v=(v&1)?(0xEDB88320^(v>>>1)):(v>>>1);t[i]=v;}let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=t[(c^b[i])&0xFF]^(c>>>8);return(c^0xFFFFFFFF)>>>0;}
 function u32be(n){return new Uint8Array([(n>>>24)&0xFF,(n>>>16)&0xFF,(n>>>8)&0xFF,n&0xFF]);}
 function ru32(b,o){return((b[o]<<24)|(b[o+1]<<16)|(b[o+2]<<8)|b[o+3])>>>0;}
@@ -410,19 +414,24 @@ async function encrypt() {
   if (!msg || !pw) { setStatus('enc', 'err', 'Nachricht und Passwort erforderlich'); return; }
   $('enc-btn').disabled = true; stage.classList.add('busy');
   try {
+    setStatus('enc', 'pulse', 'Leite Schlüssel ab ...'); await yf();
+    const salt = crypto.getRandomValues(new Uint8Array(32));
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const { aesKey, hmacKey, fractalBits } = await deriveKeys(pw, salt, PBKDF2_ITERATIONS);
     setStatus('enc', 'pulse', 'Rendere Fraktal ...'); await yf();
-    const full = renderFractal(deriveParams(pw));
+    const full = renderFractal(deriveParams(fractalBits));
     setStatus('enc', 'pulse', 'Verschlüssele ...'); await yf();
-    const enc = await doEncrypt(pw, msg);
+    const enc = await doEncrypt(msg, salt, iv, aesKey, hmacKey);
     setStatus('enc', 'pulse', 'Schreibe Payload ...'); await yf();
-    const png = await canvasToPng(full);
-    const final = injectChunk(png, makeChunk(KW, new TextEncoder().encode(b64enc(enc))));
+    let png = await canvasToPng(full);
+    png = injectChunk(png, makeChunk(KW, new TextEncoder().encode(b64enc(enc))));
+    const final = injectChunk(png, makeChunk(KW_ITER, new TextEncoder().encode(String(PBKDF2_ITERATIONS))));
     stage.classList.add('has-img');
     await revealFractal($('enc-canvas'), full);
     const dl = $('enc-download');
     if (downloadUrl) URL.revokeObjectURL(downloadUrl);
     downloadUrl = URL.createObjectURL(new Blob([final], { type: 'image/png' }));
-    dl.href = downloadUrl; dl.download = 'cipherfract.png'; dl.hidden = false;
+    dl.href = downloadUrl; dl.download = 'fracxtl.png'; dl.hidden = false;
     setStatus('enc', 'ok', `Fertig, ${msg.length} Zeichen`);
   } catch (e) {
     setStatus('enc', 'err', e.message);
@@ -436,12 +445,17 @@ async function decrypt() {
   if (!file || !pw) { setStatus('dec', 'err', 'Bild und Passwort erforderlich'); return; }
   res.style.display = 'none';
   setStatus('dec', 'pulse', 'Lese Payload ...');
-  let b64;
-  try { b64 = new TextDecoder().decode(extractChunk(new Uint8Array(await file.arrayBuffer()), KW)); }
-  catch (e) { setStatus('dec', 'err', e.message); return; }
+  let png, b64;
+  try { png = new Uint8Array(await file.arrayBuffer()); } catch { setStatus('dec', 'err', 'Datei nicht lesbar'); return; }
+  try { b64 = new TextDecoder().decode(extractChunk(png, KW)); } catch (e) { setStatus('dec', 'err', e.message); return; }
+  let iterations = PBKDF2_ITERATIONS_LEGACY;
+  try {
+    const parsed = parseInt(new TextDecoder().decode(extractChunk(png, KW_ITER)), 10);
+    if (Number.isFinite(parsed) && parsed > 0) iterations = parsed;
+  } catch { /* kein Iterations-Chunk: altes Bild, Standard bleibt 150k */ }
   setStatus('dec', 'pulse', 'Entschlüssele ...'); await yf();
   try {
-    const text = await doDecrypt(pw, b64dec(b64));
+    const text = await doDecrypt(pw, b64dec(b64), iterations);
     res.textContent = text; res.style.display = 'block';
     setStatus('dec', 'ok', `Entschlüsselt, ${text.length} Zeichen`);
   } catch (e) { setStatus('dec', 'err', e.message); }
