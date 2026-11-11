@@ -12,7 +12,7 @@
   },
   "devDependencies": {
     "electron": "^44.11.1",
-    "electron-builder": "^25.1.8"
+    "electron-builder": "^26.18.0"
   },
   "build": {
     "appId": "com.linux.cipherfract",
