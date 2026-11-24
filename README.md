@@ -1,63 +1,63 @@
 # Fracxtl
 
-**Status:** 🟢 Aktiv · Version 1.0.0
+**Status:** 🟢 Active · Version 1.0.0
 
-Desktop-App (Electron), die Textnachrichten mit AES-256-GCM verschlüsselt und im Text-Chunk eines Mandelbrot-Fraktal-PNGs versteckt. Ohne Server, ohne Pixeländerung.
+Desktop app (Electron) that encrypts text messages with AES-256-GCM and hides them in the text chunk of a Mandelbrot fractal PNG. No server, no pixel changes.
 
-**Name:** Fracxtl verbindet Fraktal und Kryptografie.
+**Name:** Fracxtl combines fractal and cryptography.
 
 ---
 
 ## Download
 
-➡️ [Neueste Version (Windows-Installer)](https://github.com/linux-nw/fracxtl/releases/latest)
+➡️ [Latest version (Windows installer)](https://github.com/linux-nw/fracxtl/releases/latest)
 
-Windows SmartScreen kann beim ersten Start "Unbekannter Herausgeber" melden, weil die Datei nicht signiert ist. Mit "Weitere Informationen" und "Trotzdem ausführen" startet sie.
-
----
-
-## Nutzung
-
-1. Nachricht und Passwort eingeben, auf Verschlüsseln klicken und das erzeugte PNG speichern.
-2. Zum Entschlüsseln das PNG laden und dasselbe Passwort eingeben.
-
-Gut zu wissen:
-
-- Die Sicherheit hängt am Passwort, am besten eine lange Passphrase. Fracxtl wurde nicht von Kryptografie-Fachleuten geprüft.
-- Die Nachricht ist verschlüsselt, aber nicht unsichtbar: Metadaten-Tools wie `exiftool` zeigen den Text-Chunk sofort an.
-- Wird das PNG neu gespeichert oder komprimiert (andere Programme, manche Chat-Apps und Bildhoster), kann der Chunk verloren gehen und die Nachricht ist weg.
-- Entschlüsseln geht nur mit PNGs, die Fracxtl erzeugt hat.
-
-Technik: PBKDF2 (600.000 Runden) mit HKDF, HMAC-SHA256 zur Prüfung. Die Fraktal-Parameter hängen von einem zufälligen Salt ab, jede Verschlüsselung ergibt ein anderes Bild.
+Windows SmartScreen may show "Unknown publisher" on first launch because the file is not signed. Click "More info" and then "Run anyway" to start it.
 
 ---
 
-## Selbst bauen
+## Usage
+
+1. Enter a message and a password, click Encrypt and save the generated PNG.
+2. To decrypt, load the PNG and enter the same password.
+
+Good to know:
+
+- The security depends on the password, ideally a long passphrase. Fracxtl has not been reviewed by cryptography experts.
+- The message is encrypted, but not invisible: metadata tools such as `exiftool` show the text chunk immediately.
+- If the PNG is re-saved or compressed (other programs, some chat apps and image hosts), the chunk can be lost and the message is gone.
+- Decryption only works with PNGs that Fracxtl created.
+
+Technology: PBKDF2 (600,000 rounds) with HKDF, HMAC-SHA256 for verification. The fractal parameters depend on a random salt, so every encryption produces a different image.
+
+---
+
+## Build it yourself
 
 ```bash
 npm install
-npm start       # App starten
-npm run dist    # Windows-Installer nach dist/
+npm start       # start the app
+npm run dist    # Windows installer into dist/
 ```
 
 ---
 
-## Repo-Struktur
+## Repo structure
 
 ```
-main.js, preload.js   Electron-Hülle
-index.html            Oberfläche und Verschlüsselung
-tools/                Icon-Erzeugung
+main.js, preload.js   Electron shell
+index.html            UI and encryption
+tools/                icon generation
 ```
 
 ---
 
-## Datenschutz
+## Privacy
 
-Alles läuft lokal, nichts verlässt deinen Rechner.
+Everything runs locally, nothing leaves your computer.
 
 ---
 
-## Lizenz
+## License
 
 [MIT](LICENSE)
