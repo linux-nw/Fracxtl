@@ -1,1 +1,1 @@
-// Kein Node-Zugriff im Renderer nötig - fractalCrypto.html läuft rein clientseitig via Web Crypto API.
+// No Node access needed in the renderer - index.html runs purely client-side via the Web Crypto API.

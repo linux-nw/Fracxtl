@@ -1,11 +1,11 @@
-// Erzeugt icon.png (512x512): Schluesselloch, in dem ein Mandelbrot-Ausschnitt sichtbar wird; schreibt auch icon.svg.
-// Aufruf: node tools/make-icon.js
+// Generates icon.png (512x512): keyhole in which a Mandelbrot section becomes visible; also writes icon.svg.
+// Usage: node tools/make-icon.js
 const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
 
 const SIZE = 512, GRID = Number(process.env.GRID || 96), CELL = SIZE / GRID, MAX_ITER = 400;
-const K = GRID / 64; // Geometrie ist in 64er-Einheiten entworfen
+const K = GRID / 64; // geometry is designed in units of 64
 const BG = [7, 11, 20];
 const STOPS = [[10, 30, 90], [30, 100, 210], [76, 201, 255], [92, 255, 196], [235, 255, 248], [76, 201, 255]];
 
@@ -21,7 +21,7 @@ function mandel(x0, y0) {
   return i >= MAX_ITER ? -1 : i + 1 - Math.log2(Math.log2(x2 + y2) / 2);
 }
 
-// Schluesselloch als Maske: Kreis oben, nach unten breiter werdender Schlitz
+// Keyhole as mask: circle on top, slot that widens downwards
 function inKeyhole(gx, gy) {
   const x = gx / K, y = gy / K;
   if (Math.hypot(x - 32, y - 25) <= 14.5) return true;
@@ -36,7 +36,7 @@ function distToKeyhole(c, r) {
 }
 const hash = (c, r) => { let h = Math.imul(c * 374761393 + r * 668265263, 1274126177); h ^= h >>> 13; return ((Math.imul(h, 1103515245) >>> 0) % 1000) / 1000; };
 
-// Zelle -> Farbe (oder null = Hintergrund). Raender loesen sich in Pixel auf.
+// Cell -> color (or null = background). Edges dissolve into pixels.
 function cellColor(c, r) {
   if (inKeyhole(c + 0.5, r + 0.5)) {
     const [vx, vy, span] = (process.env.VIEW || '-0.74364,0.13182,0.02').split(',').map(Number);
@@ -72,7 +72,7 @@ for (let py = 0; py < SIZE; py++) {
   }
 }
 
-// SVG-Fassung (ein Rechteck pro Zelle, Hintergrund als abgerundetes Quadrat)
+// SVG version (one rectangle per cell, background as rounded square)
 const hex = col => '#' + col.map(v => v.toString(16).padStart(2, '0')).join('');
 const rects = cells.map((col, i) => col ? `<rect x="${+((i % GRID) * CELL).toFixed(3)}" y="${+(Math.floor(i / GRID) * CELL).toFixed(3)}" width="${+CELL.toFixed(3)}" height="${+CELL.toFixed(3)}" fill="${hex(col)}"/>` : '').join('');
 fs.writeFileSync(path.join(__dirname, '..', 'icon.svg'),
@@ -94,4 +94,4 @@ const png = Buffer.concat([
   chunk('IHDR', ihdr), chunk('IDAT', zlib.deflateSync(raw, { level: 9 })), chunk('IEND', Buffer.alloc(0))
 ]);
 fs.writeFileSync(path.join(__dirname, '..', 'icon.png'), png);
-console.log('icon.png geschrieben', png.length, 'Bytes');
+console.log('icon.png written', png.length, 'Bytes');

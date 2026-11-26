@@ -2,7 +2,7 @@
   "name": "fracxtl",
   "productName": "Fracxtl",
   "version": "1.0.0",
-  "description": "Fraktal-basierte Steganographie - kryptographisch sicher",
+  "description": "Fractal-based steganography - cryptographically secure",
   "main": "main.js",
   "author": "linux",
   "license": "PolyForm-Noncommercial-1.0.0",
