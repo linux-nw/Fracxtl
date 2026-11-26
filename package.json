@@ -5,7 +5,7 @@
   "description": "Fraktal-basierte Steganographie - kryptographisch sicher",
   "main": "main.js",
   "author": "linux",
-  "license": "MIT",
+  "license": "PolyForm-Noncommercial-1.0.0",
   "scripts": {
     "start": "electron .",
     "dist": "electron-builder"
